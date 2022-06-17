@@ -13,5 +13,15 @@ UCLASS()
 class UNREALENGINE_EXPLORE_API AUnrealEngine_ExploreGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+public:
+	AUnrealEngine_ExploreGameModeBase();
+
+protected:
+	virtual void BeginPlay() override;
+
+protected:
+	int CurrPawnIdx;
+	int PawnCnt;
+	TArray<APawn*> GamePawns;
 };

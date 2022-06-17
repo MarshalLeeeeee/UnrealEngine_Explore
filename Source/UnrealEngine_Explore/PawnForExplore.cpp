@@ -15,7 +15,6 @@ APawnForExplore::APawnForExplore()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	AutoPossessPlayer = EAutoReceiveInput::Player0;
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -24,6 +23,14 @@ APawnForExplore::APawnForExplore()
 
 	PawnMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PawnMeshComponent"));
 	PawnMeshComponent->SetupAttachment(RootComponent);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeAsset(TEXT("/Engine/BasicShapes/Cube.Cube"));
+	if (CubeAsset.Succeeded()) {
+		PawnMeshComponent->SetStaticMesh(CubeAsset.Object);
+	}
+	PawnMeshComponent->SetSimulatePhysics(true);
+	PawnMeshComponent->SetEnableGravity(false);
+	PawnMeshComponent->SetAngularDamping(10.0f);
+	PawnMeshComponent->SetLinearDamping(5.0f);
 
 	SpringBaseOffset = FVector(-100.0f, 0.0f, 0.0f);
 	PawnSpringArm = CreateAbstractDefaultSubobject<USpringArmComponent>(TEXT("PawnSpringArm"));
@@ -36,6 +43,8 @@ APawnForExplore::APawnForExplore()
 	PawnCamera->bUsePawnControlRotation = true;
 
 	bIsControl = true;
+	bGrabing = false;
+	bGrowing = false;
 }
 
 // Called when the game starts or when spawned
@@ -55,7 +64,10 @@ void APawnForExplore::Tick(float DeltaTime)
 	CurrentScale = FMath::Clamp(CurrentScale, 1.0f, 2.0f);
 	PawnMeshComponent->SetWorldScale3D(FVector(CurrentScale));
 
-	PawnSpringArm->TargetOffset = GetController()->GetControlRotation().RotateVector(SpringBaseOffset);
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		PawnSpringArm->TargetOffset = Ctrl->GetControlRotation().RotateVector(SpringBaseOffset);
+	}
 }
 
 // Called to bind functionality to input
@@ -71,44 +83,90 @@ void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 	PlayerInputComponent->BindAction("Grow", IE_Pressed, this, &APawnForExplore::StartGrow);
 	PlayerInputComponent->BindAction("Grow", IE_Released, this, &APawnForExplore::StopGrow);
+	PlayerInputComponent->BindAction("Grab", IE_Pressed, this, &APawnForExplore::StartGrab);
+	PlayerInputComponent->BindAction("Grab", IE_Released, this, &APawnForExplore::StopGrab);
 	PlayerInputComponent->BindAction("Control", IE_Released, this, &APawnForExplore::Control);
 
 }
 
 void APawnForExplore::MoveForward(float AxisValue) {
 	if (!bIsControl) return;
-	FVector ForwardVector = UKismetMathLibrary::GetForwardVector(GetController()->GetControlRotation());
-	PawnMeshComponent->AddImpulse(ForwardVector*10000.0f * AxisValue);
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		FVector ForwardVector = UKismetMathLibrary::GetForwardVector(Ctrl->GetControlRotation());
+		PawnMeshComponent->AddImpulse(ForwardVector * 10000.0f * AxisValue);
+	}
+	
 }
 
 void APawnForExplore::MoveRight(float AxisValue) {
 	if (!bIsControl) return;
-	FVector RightVector = UKismetMathLibrary::GetRightVector(GetController()->GetControlRotation());
-	PawnMeshComponent->AddImpulse(RightVector * 10000.0f * AxisValue);
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
+		PawnMeshComponent->AddImpulse(RightVector * 10000.0f * AxisValue);
+	}
+	
 }
 
 void APawnForExplore::MoveUp(float AxisValue) {
 	if (!bIsControl) return;
-	FVector UpVector = UKismetMathLibrary::GetUpVector(GetController()->GetControlRotation());
-	PawnMeshComponent->AddImpulse(UpVector * 10000.0f * AxisValue);
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
+		PawnMeshComponent->AddImpulse(UpVector * 10000.0f * AxisValue);
+	}
+	
 }
 
 void APawnForExplore::Turn(float AxisValue) {
-	float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
-	AddControllerYawInput(AxisValue*dt*50.0f);
+	if (!bIsControl) return;
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
+		if (bGrabing) {
+			FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
+			PawnMeshComponent->AddAngularImpulseInRadians(UpVector * (AxisValue * 500000.0f));
+		}
+		else {
+			AddControllerYawInput(AxisValue * dt * 50.0f);
+		}
+	}
 }
 
 void APawnForExplore::LookUp(float AxisValue) {
-	float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
-	AddControllerPitchInput(AxisValue * dt * 50.0f);
+	if (!bIsControl) return;
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
+		if (bGrabing) {
+			FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
+			PawnMeshComponent->AddAngularImpulseInRadians(RightVector * (AxisValue * 500000.0f));
+		}
+		else {
+			AddControllerPitchInput(AxisValue * dt * 50.0f);
+		}
+	}
 }
 
 void APawnForExplore::StartGrow() {
+	if (!bIsControl) return;
 	bGrowing = true;
 }
 
 void APawnForExplore::StopGrow() {
+	if (!bIsControl) return;
 	bGrowing = false;
+}
+
+void APawnForExplore::StartGrab() {
+	if (!bIsControl) return;
+	bGrabing = true;
+}
+
+void APawnForExplore::StopGrab() {
+	if (!bIsControl) return;
+	bGrabing = false;
 }
 
 void APawnForExplore::Control() {

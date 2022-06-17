@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
-#include "GameFramework/SpringArmComponent.h"
-#include "Camera/CameraComponent.h"
 #include "PawnForExplore.generated.h"
 
 
@@ -48,11 +46,11 @@ public:
 	void LookUp(float AxisValue);
 	void StartGrow();
 	void StopGrow();
+	void StartGrab();
+	void StopGrab();
 	void Control();
 
-	// movement states
 	bool bGrowing;
-
-	// control states
 	bool bIsControl;
+	bool bGrabing;
 };
