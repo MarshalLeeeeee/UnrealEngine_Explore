@@ -17,11 +17,20 @@ class UNREALENGINE_EXPLORE_API AUnrealEngine_ExploreGameModeBase : public AGameM
 public:
 	AUnrealEngine_ExploreGameModeBase();
 
+	void SwitchPawn();
+	void SwitchView();
+	void UpdateViewYaw(float DeltaYaw);
+	void UpdateViewPitch(float DeltaPitch);
+	bool AllPawnStatic();
+
 protected:
 	virtual void BeginPlay() override;
 
-protected:
 	int CurrPawnIdx;
 	int PawnCnt;
 	TArray<APawn*> GamePawns;
+	TArray<UStaticMesh*> GamePawnMeshes;
+	TArray<int> GamePawnIdxes;
+
+	AActor* ConstructBase;
 };

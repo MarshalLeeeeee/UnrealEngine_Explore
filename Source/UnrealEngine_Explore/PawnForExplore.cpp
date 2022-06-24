@@ -2,6 +2,7 @@
 
 
 #include "PawnForExplore.h"
+#include "UnrealEngine_ExploreGameModeBase.h"
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -23,28 +24,22 @@ APawnForExplore::APawnForExplore()
 
 	PawnMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PawnMeshComponent"));
 	PawnMeshComponent->SetupAttachment(RootComponent);
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeAsset(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (CubeAsset.Succeeded()) {
-		PawnMeshComponent->SetStaticMesh(CubeAsset.Object);
-	}
-	PawnMeshComponent->SetSimulatePhysics(true);
-	PawnMeshComponent->SetEnableGravity(false);
-	PawnMeshComponent->SetAngularDamping(10.0f);
-	PawnMeshComponent->SetLinearDamping(5.0f);
 
+	armLength = 500.f;
 	SpringBaseOffset = FVector(-100.0f, 0.0f, 0.0f);
 	PawnSpringArm = CreateAbstractDefaultSubobject<USpringArmComponent>(TEXT("PawnSpringArm"));
 	PawnSpringArm->SetupAttachment(PawnMeshComponent);
-	PawnSpringArm->TargetArmLength = 200.0f;
+	PawnSpringArm->TargetArmLength = armLength;
 	PawnSpringArm->bUsePawnControlRotation = true;
-
+	
 	PawnCamera = CreateAbstractDefaultSubobject<UCameraComponent>(TEXT("PawnCamera"));
 	PawnCamera->SetupAttachment(PawnSpringArm);
 	PawnCamera->bUsePawnControlRotation = true;
 
-	bIsControl = true;
+	bIsControl = false;
 	bGrabing = false;
-	bGrowing = false;
+	impulseCoef = 1.0;
+	angularImpulseCoef = 1.0;
 }
 
 // Called when the game starts or when spawned
@@ -58,15 +53,15 @@ void APawnForExplore::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	float CurrentScale = PawnMeshComponent->GetComponentScale().X;
-	if (bGrowing) CurrentScale += DeltaTime;
-	else CurrentScale -= DeltaTime;
-	CurrentScale = FMath::Clamp(CurrentScale, 1.0f, 2.0f);
-	PawnMeshComponent->SetWorldScale3D(FVector(CurrentScale));
-
 	AController* Ctrl = GetController();
 	if (Ctrl) {
 		PawnSpringArm->TargetOffset = Ctrl->GetControlRotation().RotateVector(SpringBaseOffset);
+		
+		if (!bIsControl) {
+			float currT = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
+			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (MyGameModeBase && MyGameModeBase->AllPawnStatic() && currT-releaseControlTime > 2.0f) MyGameModeBase->SwitchPawn();
+		}
 	}
 }
 
@@ -80,9 +75,8 @@ void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	PlayerInputComponent->BindAxis("Up", this, &APawnForExplore::MoveUp);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawnForExplore::LookUp);
 	PlayerInputComponent->BindAxis("Turn", this, &APawnForExplore::Turn);
+	PlayerInputComponent->BindAxis("Zoom", this, &APawnForExplore::Zoom);
 
-	PlayerInputComponent->BindAction("Grow", IE_Pressed, this, &APawnForExplore::StartGrow);
-	PlayerInputComponent->BindAction("Grow", IE_Released, this, &APawnForExplore::StopGrow);
 	PlayerInputComponent->BindAction("Grab", IE_Pressed, this, &APawnForExplore::StartGrab);
 	PlayerInputComponent->BindAction("Grab", IE_Released, this, &APawnForExplore::StopGrab);
 	PlayerInputComponent->BindAction("Control", IE_Released, this, &APawnForExplore::Control);
@@ -90,93 +84,140 @@ void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 }
 
 void APawnForExplore::MoveForward(float AxisValue) {
-	if (!bIsControl) return;
 	AController* Ctrl = GetController();
 	if (Ctrl) {
-		FVector ForwardVector = UKismetMathLibrary::GetForwardVector(Ctrl->GetControlRotation());
-		PawnMeshComponent->AddImpulse(ForwardVector * 10000.0f * AxisValue);
+		if (bIsControl) {
+			FVector ForwardVector = UKismetMathLibrary::GetForwardVector(Ctrl->GetControlRotation());
+			PawnMeshComponent->AddImpulse(ForwardVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
+		}
+		
 	}
 	
 }
 
 void APawnForExplore::MoveRight(float AxisValue) {
-	if (!bIsControl) return;
 	AController* Ctrl = GetController();
 	if (Ctrl) {
-		FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
-		PawnMeshComponent->AddImpulse(RightVector * 10000.0f * AxisValue);
+		if (bIsControl) {
+			FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
+			PawnMeshComponent->AddImpulse(RightVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
+		}
+		
 	}
 	
 }
 
 void APawnForExplore::MoveUp(float AxisValue) {
-	if (!bIsControl) return;
 	AController* Ctrl = GetController();
 	if (Ctrl) {
-		FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
-		PawnMeshComponent->AddImpulse(UpVector * 10000.0f * AxisValue);
+		if (bIsControl) {
+			FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
+			PawnMeshComponent->AddImpulse(UpVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
+		}
+		
 	}
 	
 }
 
 void APawnForExplore::Turn(float AxisValue) {
-	if (!bIsControl) return;
 	AController* Ctrl = GetController();
 	if (Ctrl) {
 		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
-		if (bGrabing) {
-			FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
-			PawnMeshComponent->AddAngularImpulseInRadians(UpVector * (AxisValue * 500000.0f));
+		if (bIsControl) {
+			if (bGrabing) {
+				FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
+				PawnMeshComponent->AddAngularImpulseInRadians(UpVector * (AxisValue * angularImpulseCoef * 100000.0f * PawnMeshComponent->GetMass()));
+			}
+			else {
+				AddControllerYawInput(AxisValue * dt * 50.0f);
+			}
 		}
 		else {
-			AddControllerYawInput(AxisValue * dt * 50.0f);
+			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (MyGameModeBase) MyGameModeBase->UpdateViewYaw(AxisValue * dt * 50.0f);
 		}
 	}
 }
 
 void APawnForExplore::LookUp(float AxisValue) {
-	if (!bIsControl) return;
 	AController* Ctrl = GetController();
 	if (Ctrl) {
 		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
-		if (bGrabing) {
-			FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
-			PawnMeshComponent->AddAngularImpulseInRadians(RightVector * (AxisValue * 500000.0f));
+		if (bIsControl) {
+			if (bGrabing) {
+				FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
+				PawnMeshComponent->AddAngularImpulseInRadians(RightVector * (AxisValue * angularImpulseCoef * 100000.0f * PawnMeshComponent->GetMass()));
+			}
+			else {
+				AddControllerPitchInput(AxisValue * dt * 50.0f);
+			}
 		}
 		else {
-			AddControllerPitchInput(AxisValue * dt * 50.0f);
+			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (MyGameModeBase) MyGameModeBase->UpdateViewPitch(AxisValue * dt * 50.0f);
 		}
 	}
 }
 
-void APawnForExplore::StartGrow() {
+void APawnForExplore::Zoom(float AxisValue) {
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		if (bIsControl) {
+			float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
+			armLength += dt * AxisValue * 1000.0f;
+			armLength = FMath::Clamp(armLength, 100.0f, 500.0f);
+			PawnSpringArm->TargetArmLength = armLength;
+			impulseCoef += dt * AxisValue * 2.0f;
+			impulseCoef = FMath::Clamp(impulseCoef, 0.2f, 1.0f);
+			angularImpulseCoef += dt * AxisValue * 2.0f;
+			angularImpulseCoef = FMath::Clamp(angularImpulseCoef, 0.2f, 1.0f);
+		}
+	}
 	if (!bIsControl) return;
-	bGrowing = true;
-}
-
-void APawnForExplore::StopGrow() {
-	if (!bIsControl) return;
-	bGrowing = false;
+	
 }
 
 void APawnForExplore::StartGrab() {
-	if (!bIsControl) return;
-	bGrabing = true;
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		if (bIsControl) {
+			bGrabing = true;
+		}
+	}
 }
 
 void APawnForExplore::StopGrab() {
-	if (!bIsControl) return;
-	bGrabing = false;
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		if (bIsControl) {
+			bGrabing = false;
+		}
+	}
 }
 
 void APawnForExplore::Control() {
-	if (bIsControl) {
-		PawnMeshComponent->SetEnableGravity(true);
-		bIsControl = false;
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		if (bIsControl) {
+			PawnMeshComponent->SetEnableGravity(true);
+			PawnMeshComponent->SetAngularDamping(2.0f);
+			PawnMeshComponent->SetLinearDamping(2.0f);
+			bIsControl = false;
+			releaseControlTime = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
+			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (MyGameModeBase) MyGameModeBase->SwitchView();
+		}
 	}
-	else {
-		PawnMeshComponent->SetEnableGravity(false);
-		bIsControl = true;
-	}
+}
+
+void APawnForExplore::Init(UStaticMesh* mesh) {
+	SetActorLocation(FVector(500.0f,1000.0f,500.0f));
+	PawnMeshComponent->SetStaticMesh(mesh);
+	PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
+	PawnMeshComponent->SetSimulatePhysics(true);
+	PawnMeshComponent->SetEnableGravity(false);
+	PawnMeshComponent->SetAngularDamping(5.0f);
+	PawnMeshComponent->SetLinearDamping(5.0f);
+	bIsControl = true;
 }
 

@@ -32,8 +32,9 @@ public:
 
 	UPROPERTY(EditAnywhere)
 		class USpringArmComponent* PawnSpringArm;
+
 	UPROPERTY(EditAnywhere)
-	FVector SpringBaseOffset;
+		FVector SpringBaseOffset;
 
 	UPROPERTY(EditAnywhere)
 		class UCameraComponent* PawnCamera;
@@ -44,13 +45,19 @@ public:
 	void MoveUp(float AxisValue);
 	void Turn(float AxisValue);
 	void LookUp(float AxisValue);
-	void StartGrow();
-	void StopGrow();
+	void Zoom(float AxisValue);
 	void StartGrab();
 	void StopGrab();
 	void Control();
+	void Init(UStaticMesh* mesh);
 
-	bool bGrowing;
+protected:
+
+	float armLength;
+	float impulseCoef;
+	float angularImpulseCoef;
+
 	bool bIsControl;
 	bool bGrabing;
+	float releaseControlTime;
 };
