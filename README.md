@@ -20,4 +20,4 @@ Explore UnrealEngine in CPP(main) / Blueprint(co)
 
 ### API
  - Physics: The majority API of Physics is defined in ```UPrimitiveComponent``` [→](https://docs.unrealengine.com/4.27/en-US/API/Runtime/Engine/Components/UPrimitiveComponent/). 
-  - Note that when simulating physics, UE4 __always__ uses simple collision rather than complex collision.
+   - Note that when simulating physics, UE4 __always__ uses simple collision rather than complex collision.
