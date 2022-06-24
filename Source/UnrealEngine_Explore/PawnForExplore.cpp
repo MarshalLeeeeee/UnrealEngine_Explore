@@ -12,8 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
-APawnForExplore::APawnForExplore()
-{
+APawnForExplore::APawnForExplore() {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bUseControllerRotationPitch = false;
@@ -43,14 +42,12 @@ APawnForExplore::APawnForExplore()
 }
 
 // Called when the game starts or when spawned
-void APawnForExplore::BeginPlay()
-{
+void APawnForExplore::BeginPlay() {
 	Super::BeginPlay();
 }
 
 // Called every frame
-void APawnForExplore::Tick(float DeltaTime)
-{
+void APawnForExplore::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	AController* Ctrl = GetController();
@@ -66,8 +63,7 @@ void APawnForExplore::Tick(float DeltaTime)
 }
 
 // Called to bind functionality to input
-void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
+void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 	PlayerInputComponent->BindAxis("Forward", this, &APawnForExplore::MoveForward);

@@ -6,8 +6,7 @@
 #include "GameFramework/SpringArmComponent.h"
 
 // Sets default values
-AConstructBase::AConstructBase()
-{
+AConstructBase::AConstructBase() {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -33,35 +32,28 @@ AConstructBase::AConstructBase()
 }
 
 // Called when the game starts or when spawned
-void AConstructBase::BeginPlay()
-{
+void AConstructBase::BeginPlay() {
 	Super::BeginPlay();
-	
 }
 
 // Called every frame
-void AConstructBase::Tick(float DeltaTime)
-{
+void AConstructBase::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 	Anchor->SetRelativeRotation(FRotator(anchorPitch, anchorYaw, anchorRoll));
 }
 
 void AConstructBase::UpdateAnchorYaw(float DeltaYaw) {
 	anchorYaw += DeltaYaw;
-	//Anchor->AddRelativeRotation(FRotator(0.0f, DeltaYaw, 0.0f));
 }
 
 void AConstructBase::UpdateAnchorPitch(float DeltaPitch) {
 	if (anchorPitch + DeltaPitch > -20.0f) {
-		//Anchor->AddRelativeRotation(FRotator(-20.0f-anchorPitch, 0.0f, 0.0f));
 		anchorPitch = -20.0f;
 	}
 	else if (anchorPitch + DeltaPitch < -90.0f) {
-		//Anchor->AddRelativeRotation(FRotator(-90.0f-anchorPitch, 0.0f, 0.0f));
 		anchorPitch = -90.0f;
 	}
 	else {
-		//Anchor->AddRelativeRotation(FRotator(DeltaPitch, 0.0f, 0.0f));
 		anchorPitch += DeltaPitch;
 	}
 	
