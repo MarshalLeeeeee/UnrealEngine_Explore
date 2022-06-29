@@ -1,5 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
+#define print(text) if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 1.5, FColor::Green,text)
 
 #include "PawnForExplore.h"
 #include "UnrealEngine_ExploreGameModeBase.h"
@@ -37,6 +37,7 @@ APawnForExplore::APawnForExplore() {
 
 	bIsControl = false;
 	bGrabing = false;
+	bInit = false;
 	impulseCoef = 1.0;
 	angularImpulseCoef = 1.0;
 }
@@ -57,7 +58,10 @@ void APawnForExplore::Tick(float DeltaTime) {
 		if (!bIsControl) {
 			float currT = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
 			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-			if (MyGameModeBase && MyGameModeBase->AllPawnStatic() && currT-releaseControlTime > 2.0f) MyGameModeBase->SwitchPawn();
+			if (MyGameModeBase && currT - releaseControlTime > 2.0f && currT - releaseControlTime < 3.0f) {
+				MyGameModeBase->ReadyToSwitch(1.0f);
+				releaseControlTime = -3.0f;
+			}
 		}
 	}
 }
@@ -158,8 +162,8 @@ void APawnForExplore::LookUp(float AxisValue) {
 void APawnForExplore::Zoom(float AxisValue) {
 	AController* Ctrl = GetController();
 	if (Ctrl) {
+		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 		if (bIsControl) {
-			float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 			armLength += dt * AxisValue * 1000.0f;
 			armLength = FMath::Clamp(armLength, 100.0f, 500.0f);
 			PawnSpringArm->TargetArmLength = armLength;
@@ -168,9 +172,11 @@ void APawnForExplore::Zoom(float AxisValue) {
 			angularImpulseCoef += dt * AxisValue * 2.0f;
 			angularImpulseCoef = FMath::Clamp(angularImpulseCoef, 0.2f, 1.0f);
 		}
+		else {
+			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+			if (MyGameModeBase) MyGameModeBase->UpdateViewDistance(AxisValue * dt * 2000.0f);
+		}
 	}
-	if (!bIsControl) return;
-	
 }
 
 void APawnForExplore::StartGrab() {
@@ -201,19 +207,31 @@ void APawnForExplore::Control() {
 			bIsControl = false;
 			releaseControlTime = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
 			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-			if (MyGameModeBase) MyGameModeBase->SwitchView();
+			if (MyGameModeBase) MyGameModeBase->SwitchView(1.0f);
 		}
 	}
 }
 
-void APawnForExplore::Init(UStaticMesh* mesh) {
-	SetActorLocation(FVector(500.0f,1000.0f,500.0f));
-	PawnMeshComponent->SetStaticMesh(mesh);
-	PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
-	PawnMeshComponent->SetSimulatePhysics(true);
+void APawnForExplore::Init(UStaticMesh* mesh, int i) {
+	if (!bInit) {
+		SetActorLocation(FVector(500.0f, 1000.0f, 500.0f));
+		PawnMeshComponent->SetStaticMesh(mesh);
+		PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
+		PawnMeshComponent->SetSimulatePhysics(true);
+		bInit = true;
+		pawnIdx = i;
+	}
 	PawnMeshComponent->SetEnableGravity(false);
 	PawnMeshComponent->SetAngularDamping(5.0f);
 	PawnMeshComponent->SetLinearDamping(5.0f);
 	bIsControl = true;
+}
+
+bool APawnForExplore::IsControlled() {
+	return bIsControl;
+}
+
+int APawnForExplore::GetPawnIdx() {
+	return pawnIdx;
 }
 

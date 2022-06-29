@@ -30,10 +30,12 @@ public:
 
 	void UpdateAnchorYaw(float DeltaYaw);
 	void UpdateAnchorPitch(float DeltaPitch);
+	void UpdateAnchorDistance(float DeltaDist);
 
 private:
 	
 	float anchorRoll;
 	float anchorYaw;
 	float anchorPitch;
+	float anchorDistance;
 };

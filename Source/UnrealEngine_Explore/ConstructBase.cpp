@@ -3,6 +3,7 @@
 
 #include "ConstructBase.h"
 #include "Camera/CameraComponent.h"
+#include "Math/UnrealMathUtility.h"
 #include "GameFramework/SpringArmComponent.h"
 
 // Sets default values
@@ -25,9 +26,10 @@ AConstructBase::AConstructBase() {
 	anchorRoll = 0.0f;
 	Anchor->SetRelativeRotation(FRotator(anchorPitch, anchorYaw, anchorRoll));
 
+	anchorDistance = 1000.0f;
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("ConstructBaseCamera"));
 	CameraComp->SetupAttachment(Anchor);
-	CameraComp->SetRelativeLocation(FVector(-1000.0f, 0.0f, 0.0f));
+	CameraComp->SetRelativeLocation(FVector(-anchorDistance, 0.0f, 0.0f));
 	
 }
 
@@ -40,6 +42,7 @@ void AConstructBase::BeginPlay() {
 void AConstructBase::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 	Anchor->SetRelativeRotation(FRotator(anchorPitch, anchorYaw, anchorRoll));
+	CameraComp->SetRelativeLocation(FVector(-anchorDistance, 0.0f, 0.0f));
 }
 
 void AConstructBase::UpdateAnchorYaw(float DeltaYaw) {
@@ -47,14 +50,9 @@ void AConstructBase::UpdateAnchorYaw(float DeltaYaw) {
 }
 
 void AConstructBase::UpdateAnchorPitch(float DeltaPitch) {
-	if (anchorPitch + DeltaPitch > -20.0f) {
-		anchorPitch = -20.0f;
-	}
-	else if (anchorPitch + DeltaPitch < -90.0f) {
-		anchorPitch = -90.0f;
-	}
-	else {
-		anchorPitch += DeltaPitch;
-	}
-	
+	anchorPitch = FMath::Clamp(anchorPitch + DeltaPitch, -90.0f, -20.0f);
+}
+
+void AConstructBase::UpdateAnchorDistance(float DeltaDist) {
+	anchorDistance = FMath::Clamp(anchorDistance + DeltaDist, 500.0f, 1000.0f);
 }

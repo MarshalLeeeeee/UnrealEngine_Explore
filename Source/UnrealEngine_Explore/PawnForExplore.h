@@ -49,7 +49,9 @@ public:
 	void StartGrab();
 	void StopGrab();
 	void Control();
-	void Init(UStaticMesh* mesh);
+	void Init(UStaticMesh* mesh, int i);
+	bool IsControlled();
+	int GetPawnIdx();
 
 protected:
 
@@ -57,7 +59,11 @@ protected:
 	float impulseCoef;
 	float angularImpulseCoef;
 
+	float releaseControlTime;
+
 	bool bIsControl;
 	bool bGrabing;
-	float releaseControlTime;
+	bool bInit;
+	
+	int pawnIdx;
 };
