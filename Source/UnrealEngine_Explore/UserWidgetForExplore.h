@@ -23,6 +23,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 		class UTextBlock* SecondTitle;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+		class UButton* RestartButton;
+
+	UFUNCTION()
+		void RestartGame();
+
 public:
 	void SetTestTitle(FText text);
 	void SetLostPawnCnt(int cnt);
