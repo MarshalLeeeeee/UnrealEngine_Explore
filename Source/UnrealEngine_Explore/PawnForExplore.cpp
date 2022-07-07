@@ -79,7 +79,8 @@ void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 	PlayerInputComponent->BindAction("Grab", IE_Pressed, this, &APawnForExplore::StartGrab);
 	PlayerInputComponent->BindAction("Grab", IE_Released, this, &APawnForExplore::StopGrab);
-	PlayerInputComponent->BindAction("Control", IE_Released, this, &APawnForExplore::Control);
+	PlayerInputComponent->BindAction("Control", IE_Pressed, this, &APawnForExplore::Control);
+	PlayerInputComponent->BindAction("Pause", IE_Pressed, this, &APawnForExplore::Pause).bExecuteWhenPaused = true;
 
 }
 
@@ -212,10 +213,18 @@ void APawnForExplore::Control() {
 	}
 }
 
+void APawnForExplore::Pause() {
+	AController* Ctrl = GetController();
+	if (Ctrl) {
+		AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+		if (MyGameModeBase) MyGameModeBase->PauseGame();
+	}
+}
+
 void APawnForExplore::Init(UStaticMesh* mesh, int i) {
 	if (!bInit) {
 		SetActorLocation(FVector(500.0f, 1000.0f, 500.0f));
-		PawnMeshComponent->SetStaticMesh(mesh);
+		if (mesh) PawnMeshComponent->SetStaticMesh(mesh);
 		PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
 		PawnMeshComponent->SetSimulatePhysics(true);
 		bInit = true;

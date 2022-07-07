@@ -49,6 +49,7 @@ public:
 	void StartGrab();
 	void StopGrab();
 	void Control();
+	void Pause();
 	void Init(UStaticMesh* mesh, int i);
 	bool IsControlled();
 	int GetPawnIdx();

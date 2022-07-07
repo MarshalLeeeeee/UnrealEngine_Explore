@@ -4,7 +4,9 @@
 #include "UnrealEngine_ExploreGameModeBase.h"
 #include "PawnForExplore.h"
 #include "ConstructBase.h"
-#include "UserWidgetForExplore.h"
+#include "GameMenu.h"
+#include "StartMenu.h"
+#include "PauseMenu.h"
 #include "Math/UnrealMathUtility.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
@@ -14,15 +16,7 @@ AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
 	PrimaryActorTick.bCanEverTick = true;
 	DefaultPawnClass = APawnForExplore::StaticClass();
 	PawnCnt = 15;
-	LostPawnCnt = 0;
-	CurrPawnIdx = 0;
-	for (int i = 0; i < PawnCnt; i++) GamePawnIdxes.Emplace(i);
-	for (int i = PawnCnt; i > 0; i--) {
-		int j = FMath::RandHelper(i);
-		int x = GamePawnIdxes[i - 1];
-		GamePawnIdxes[i - 1] = GamePawnIdxes[j];
-		GamePawnIdxes[j] = x;
-	}
+	
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset1(TEXT("/Game/Meshes/blockConcave.blockConcave"));
 	GamePawnMeshes.Push(MeshAsset1.Object);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset2(TEXT("/Game/Meshes/blockGroove.blockGroove"));
@@ -55,22 +49,38 @@ AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
 	GamePawnMeshes.Push(MeshAsset15.Object);
 
 	// static ConstructorHelpers::FClassFinder<UUserWidget> WidgetAsset(TEXT("/Game/UI/Menus/GameMenu"));
-	// StartingWidgetClass = WidgetAsset.Class;
+	// StartWidgetClass = WidgetAsset.Class;
+
+	
 }
 
 void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Game initialized...")));
+	for (int i = 0; i < PawnCnt; i++) GamePawnIdxes.Emplace(i);
+	for (int i = PawnCnt; i > 0; i--) {
+		int j = FMath::RandHelper(i);
+		int x = GamePawnIdxes[i - 1];
+		GamePawnIdxes[i - 1] = GamePawnIdxes[j];
+		GamePawnIdxes[j] = x;
+	}
 	for (int i = 0; i < PawnCnt; i++) {
 		GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-500.0f), FRotator(0.0f, 0.0f, 0.0f)));
 	}
 	GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-1000.0f), FRotator(0.0f, 0.0f, 0.0f))); // Ghost pawn for camera view
-	Cast<APawnForExplore>(GamePawns[GamePawnIdxes[CurrPawnIdx]])->Init(GamePawnMeshes[GamePawnIdxes[CurrPawnIdx]], CurrPawnIdx);
-	UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[GamePawnIdxes[CurrPawnIdx]]);
-	bReadyToSwitch = false;
-	SwitchTime = -1.0f;
+
+	bGameOver = false;
+	bGamePause = false;
+	bGameStart = false;
 
 	ConstructBase = GetWorld()->SpawnActor<AConstructBase>(FVector(500.0f, 500.0f, 100.0f), FRotator(0.0f, 0.0f, 0.0f));
 
-	ChangeMenuWidget(StartingWidgetClass);
+	LostPawnCnt = 0;
+	CurrPawnIdx = -1;
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
+	SwitchView(0.0f);
+	SwitchWidget(StartWidgetClass);
+
+	UGameplayStatics::SetGamePaused(GetWorld(), true);
 }
 
 void AUnrealEngine_ExploreGameModeBase::Tick(float DeltaTime) {
@@ -88,8 +98,11 @@ void AUnrealEngine_ExploreGameModeBase::SwitchPawn() {
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[GamePawnIdxes[CurrPawnIdx]]);
 	}
 	else {
-		UUserWidgetForExplore* GameWidget = Cast<UUserWidgetForExplore>(CurrentWidget);
+		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
+		SwitchView(0.0f);
+		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
 		if (GameWidget) GameWidget->SetTestTitle(FText::FromString(TEXT("Game Over")));
+		bGameOver = true;
 	}
 	bReadyToSwitch = false;
 	SwitchTime = -1.0f;
@@ -126,8 +139,6 @@ bool AUnrealEngine_ExploreGameModeBase::AllPawnStatic() {
 
 void AUnrealEngine_ExploreGameModeBase::DeactivatePawn(int i) {
 	if (i == CurrPawnIdx) {
-		UUserWidgetForExplore* GameWidget = Cast<UUserWidgetForExplore>(CurrentWidget);
-		if (GameWidget) GameWidget->SetTestTitle(FText::FromString(TEXT("Deactivate self")));
 		ReadyToSwitch(1.0f);
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
 		SwitchView(0.0f);
@@ -135,18 +146,16 @@ void AUnrealEngine_ExploreGameModeBase::DeactivatePawn(int i) {
 	GetWorld()->DestroyActor(GamePawns[GamePawnIdxes[i]]);
 	GamePawns[GamePawnIdxes[i]] = nullptr;
 	LostPawnCnt++;
-	UUserWidgetForExplore* GameWidget = Cast<UUserWidgetForExplore>(CurrentWidget);
+	UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
 	if (GameWidget) GameWidget->SetLostPawnCnt(LostPawnCnt);
 }
 
 void AUnrealEngine_ExploreGameModeBase::ReadyToSwitch(float delay) {
 	bReadyToSwitch = true;
 	SwitchTime = FMath::Max(SwitchTime, UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld()) + delay);
-	UUserWidgetForExplore* GameWidget = Cast<UUserWidgetForExplore>(CurrentWidget);
-	if (GameWidget) GameWidget->SetTestTitle(FText::FromString(TEXT("Ready to switch")));
 }
 
-void AUnrealEngine_ExploreGameModeBase::ChangeMenuWidget(TSubclassOf<UUserWidget> NewWidgetClass) {
+void AUnrealEngine_ExploreGameModeBase::SwitchWidget(TSubclassOf<UUserWidget> NewWidgetClass) {
 	if (CurrentWidget != nullptr) {
 		CurrentWidget->RemoveFromViewport();
 		CurrentWidget = nullptr;
@@ -159,4 +168,62 @@ void AUnrealEngine_ExploreGameModeBase::ChangeMenuWidget(TSubclassOf<UUserWidget
 			CurrentWidget->AddToViewport();
 		}
 	}
+
+	if (!bGameStart || bGamePause) {
+		APlayerController* ctrl = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (ctrl) {
+			ctrl->bShowMouseCursor = true;
+			ctrl->SetInputMode(FInputModeUIOnly());
+		}
+	}
+	else {
+		APlayerController* ctrl = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (ctrl) {
+			ctrl->bShowMouseCursor = false;
+			ctrl->SetInputMode(FInputModeGameOnly());
+		}
+	}
+}
+
+void AUnrealEngine_ExploreGameModeBase::StartGame(FText name) {
+	if (!bGameStart) {
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
+		bGameStart = true;
+		PlayerName = name;
+
+		SwitchWidget(GameWidgetClass);
+		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
+		if (GameWidget) {
+			GameWidget->SetTestTitle(PlayerName);
+			GameWidget->SetLostPawnCnt(LostPawnCnt);
+		}
+
+		SwitchPawn();
+	}
+}
+
+void AUnrealEngine_ExploreGameModeBase::RestartGame() {
+	UGameplayStatics::OpenLevel(this, FName(*GetWorld()->GetName()), false);
+}
+
+void AUnrealEngine_ExploreGameModeBase::PauseGame() {
+	if (bGamePause) {
+		bGamePause = false;
+		SwitchWidget(GameWidgetClass);
+		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
+		if (GameWidget) {
+			GameWidget->SetTestTitle(PlayerName);
+			GameWidget->SetLostPawnCnt(LostPawnCnt);
+		}
+		UGameplayStatics::SetGamePaused(GetWorld(), bGamePause);
+	}
+	else {
+		bGamePause = true;
+		SwitchWidget(PauseWidgetClass);
+		UGameplayStatics::SetGamePaused(GetWorld(), bGamePause);
+	}
+}
+
+void AUnrealEngine_ExploreGameModeBase::QuitGame() {
+	UKismetSystemLibrary::QuitGame(GetWorld(),UGameplayStatics::GetPlayerController(GetWorld(),0), EQuitPreference::Quit,true);
 }

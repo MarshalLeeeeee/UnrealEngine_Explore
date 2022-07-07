@@ -14,12 +14,12 @@ AFloorTriggerBox::AFloorTriggerBox() {
 
 void AFloorTriggerBox::BeginPlay() {
     Super::BeginPlay();
-    DrawDebugBox(GetWorld(), GetActorLocation(), GetComponentsBoundingBox().GetExtent(), FColor::Green, true, -1, 0, 5);
+    // DrawDebugBox(GetWorld(), GetActorLocation(), GetComponentsBoundingBox().GetExtent(), FColor::Green, true, -1, 0, 5);
 }
 
 void AFloorTriggerBox::OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor) {
     if (OtherActor && (OtherActor != this) && OtherActor->GetClass() == APawnForExplore::StaticClass()) {
-        print("Overlap Begin");
+        // print("Overlap Begin");
         if (!Cast<APawnForExplore>(OtherActor)->IsControlled()) {
             AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
             if (MyGameModeBase) {
