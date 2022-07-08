@@ -25,9 +25,6 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-		class UImage* MaterialTexture;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 		class USlider* RSlider;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -35,6 +32,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 		class USlider* BSlider;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+		class USlider* ASlider;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 		class UEditableTextBox* InputTextBox;
@@ -66,5 +66,7 @@ protected:
 	UFUNCTION()
 		void QuitGameUnhovered();
 
+	UFUNCTION()
+		void UpdateColor(float value);
 	
 };

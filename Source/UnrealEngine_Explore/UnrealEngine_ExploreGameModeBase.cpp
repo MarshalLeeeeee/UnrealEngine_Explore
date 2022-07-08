@@ -10,6 +10,8 @@
 #include "Math/UnrealMathUtility.h"
 #include "Kismet/GameplayStatics.h"
 #include "Blueprint/UserWidget.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 // Define constructor
 AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
@@ -17,6 +19,8 @@ AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
 	DefaultPawnClass = APawnForExplore::StaticClass();
 	PawnCnt = 15;
 	
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset0(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	GamePawnMeshes.Push(MeshAsset0.Object);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset1(TEXT("/Game/Meshes/blockConcave.blockConcave"));
 	GamePawnMeshes.Push(MeshAsset1.Object);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset2(TEXT("/Game/Meshes/blockGroove.blockGroove"));
@@ -48,22 +52,23 @@ AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshAsset15(TEXT("/Game/Meshes/torus.torus"));
 	GamePawnMeshes.Push(MeshAsset15.Object);
 
+	static ConstructorHelpers::FObjectFinder<UMaterial> MaterialAsset(TEXT("/Game/Materials/WoodPlank.WoodPlank"));
+	MeshMaterial = MaterialAsset.Object;
+	MeshMaterialInstance = UMaterialInstanceDynamic::Create(MeshMaterial, nullptr);	
+
 	// static ConstructorHelpers::FClassFinder<UUserWidget> WidgetAsset(TEXT("/Game/UI/Menus/GameMenu"));
 	// StartWidgetClass = WidgetAsset.Class;
-
-	
 }
 
 void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("Game initialized...")));
-	for (int i = 0; i < PawnCnt; i++) GamePawnIdxes.Emplace(i);
+	for (int i = 0; i <= PawnCnt; i++) GamePawnIdxes.Emplace(i);
 	for (int i = PawnCnt; i > 0; i--) {
-		int j = FMath::RandHelper(i);
-		int x = GamePawnIdxes[i - 1];
-		GamePawnIdxes[i - 1] = GamePawnIdxes[j];
+		int j = FMath::RandHelper(i)+1;
+		int x = GamePawnIdxes[i];
+		GamePawnIdxes[i] = GamePawnIdxes[j];
 		GamePawnIdxes[j] = x;
 	}
-	for (int i = 0; i < PawnCnt; i++) {
+	for (int i = 0; i <= PawnCnt; i++) {
 		GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-500.0f), FRotator(0.0f, 0.0f, 0.0f)));
 	}
 	GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-1000.0f), FRotator(0.0f, 0.0f, 0.0f))); // Ghost pawn for camera view
@@ -71,16 +76,15 @@ void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
 	bGameOver = false;
 	bGamePause = false;
 	bGameStart = false;
+	bReadyToSwitch = false;
 
 	ConstructBase = GetWorld()->SpawnActor<AConstructBase>(FVector(500.0f, 500.0f, 100.0f), FRotator(0.0f, 0.0f, 0.0f));
 
 	LostPawnCnt = 0;
-	CurrPawnIdx = -1;
-	UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
-	SwitchView(0.0f);
+	CurrPawnIdx = 0;
+	Cast<APawnForExplore>(GamePawns[CurrPawnIdx])->Init(GamePawnMeshes[CurrPawnIdx], MeshMaterialInstance, CurrPawnIdx);
+	UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[CurrPawnIdx]);
 	SwitchWidget(StartWidgetClass);
-
-	UGameplayStatics::SetGamePaused(GetWorld(), true);
 }
 
 void AUnrealEngine_ExploreGameModeBase::Tick(float DeltaTime) {
@@ -90,15 +94,13 @@ void AUnrealEngine_ExploreGameModeBase::Tick(float DeltaTime) {
 }
 
 void AUnrealEngine_ExploreGameModeBase::SwitchPawn() {
-	while (++CurrPawnIdx < PawnCnt) {
-		if (GamePawns[GamePawnIdxes[CurrPawnIdx]]) break;
-	}
-	if (CurrPawnIdx < PawnCnt) {
-		Cast<APawnForExplore>(GamePawns[GamePawnIdxes[CurrPawnIdx]])->Init(GamePawnMeshes[GamePawnIdxes[CurrPawnIdx]], CurrPawnIdx);
+	CurrPawnIdx++;
+	if (CurrPawnIdx <= PawnCnt) {
+		Cast<APawnForExplore>(GamePawns[GamePawnIdxes[CurrPawnIdx]])->Init(GamePawnMeshes[GamePawnIdxes[CurrPawnIdx]], MeshMaterialInstance, CurrPawnIdx);
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[GamePawnIdxes[CurrPawnIdx]]);
 	}
 	else {
-		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
+		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[CurrPawnIdx]);
 		SwitchView(0.0f);
 		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
 		if (GameWidget) GameWidget->SetTestTitle(FText::FromString(TEXT("Game Over")));
@@ -128,7 +130,7 @@ void AUnrealEngine_ExploreGameModeBase::UpdateViewDistance(float DeltaDist) {
 }
 
 bool AUnrealEngine_ExploreGameModeBase::AllPawnStatic() {
-	for (int i = 0; i < PawnCnt; i++) {
+	for (int i = 1; i <= PawnCnt; i++) {
 		if (GamePawns[i]) {
 			FVector v = Cast<APawnForExplore>(GamePawns[i])->PawnMeshComponent->GetComponentVelocity();
 			if (!v.IsZero()) return false;
@@ -140,14 +142,16 @@ bool AUnrealEngine_ExploreGameModeBase::AllPawnStatic() {
 void AUnrealEngine_ExploreGameModeBase::DeactivatePawn(int i) {
 	if (i == CurrPawnIdx) {
 		ReadyToSwitch(1.0f);
-		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt]);
+		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt+1]);
 		SwitchView(0.0f);
 	}
 	GetWorld()->DestroyActor(GamePawns[GamePawnIdxes[i]]);
 	GamePawns[GamePawnIdxes[i]] = nullptr;
-	LostPawnCnt++;
-	UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
-	if (GameWidget) GameWidget->SetLostPawnCnt(LostPawnCnt);
+	if (i) {
+		LostPawnCnt++;
+		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
+		if (GameWidget) GameWidget->SetLostPawnCnt(LostPawnCnt);
+	}
 }
 
 void AUnrealEngine_ExploreGameModeBase::ReadyToSwitch(float delay) {
@@ -198,6 +202,7 @@ void AUnrealEngine_ExploreGameModeBase::StartGame(FText name) {
 			GameWidget->SetLostPawnCnt(LostPawnCnt);
 		}
 
+		DeactivatePawn(CurrPawnIdx);
 		SwitchPawn();
 	}
 }
@@ -226,4 +231,10 @@ void AUnrealEngine_ExploreGameModeBase::PauseGame() {
 
 void AUnrealEngine_ExploreGameModeBase::QuitGame() {
 	UKismetSystemLibrary::QuitGame(GetWorld(),UGameplayStatics::GetPlayerController(GetWorld(),0), EQuitPreference::Quit,true);
+}
+
+void AUnrealEngine_ExploreGameModeBase::SetMaterial(float r, float g, float b, float a) {
+	MeshMaterialInstance->SetVectorParameterValue(FName(TEXT("BlendColor")), FLinearColor(r, g, b, 1.0f));
+	MeshMaterialInstance->SetScalarParameterValue(FName(TEXT("EmissiveCoef")), a);
+	Cast<APawnForExplore>(GamePawns[CurrPawnIdx])->Init(GamePawnMeshes[CurrPawnIdx], MeshMaterialInstance, CurrPawnIdx);
 }

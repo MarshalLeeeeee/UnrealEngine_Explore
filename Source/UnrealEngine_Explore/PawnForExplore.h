@@ -50,7 +50,7 @@ public:
 	void StopGrab();
 	void Control();
 	void Pause();
-	void Init(UStaticMesh* mesh, int i);
+	void Init(UStaticMesh* mesh, class UMaterialInstanceDynamic* materialInstance, int i);
 	bool IsControlled();
 	int GetPawnIdx();
 

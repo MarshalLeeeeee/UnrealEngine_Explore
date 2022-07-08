@@ -13,6 +13,29 @@
 void UStartMenu::NativeConstruct() {
 	Super::NativeConstruct();
 
+	FScriptDelegate SliderDelegte;
+	SliderDelegte.BindUFunction(this, "UpdateColor");
+
+	RSlider->SetMinValue(0.0f);
+	RSlider->SetMaxValue(1.0f);
+	RSlider->SetValue(1.0f);
+	RSlider->OnValueChanged.Add(SliderDelegte);
+
+	GSlider->SetMinValue(0.0f);
+	GSlider->SetMaxValue(1.0f);
+	GSlider->SetValue(1.0f);
+	GSlider->OnValueChanged.Add(SliderDelegte);
+
+	BSlider->SetMinValue(0.0f);
+	BSlider->SetMaxValue(1.0f);
+	BSlider->SetValue(1.0f);
+	BSlider->OnValueChanged.Add(SliderDelegte);
+
+	ASlider->SetMinValue(0.0f);
+	ASlider->SetMaxValue(5.0f);
+	ASlider->SetValue(0.0f);
+	ASlider->OnValueChanged.Add(SliderDelegte);
+
 	FScriptDelegate StartGameButtonDelegte;
 	StartGameButtonDelegte.BindUFunction(this, "StartGame");
 	StartGameButton->OnClicked.Add(StartGameButtonDelegte);
@@ -103,5 +126,14 @@ void UStartMenu::QuitGameHovered() {
 
 void UStartMenu::QuitGameUnhovered() {
 	QuitGameButton->SetBackgroundColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+}
+
+void UStartMenu::UpdateColor(float value) {
+	float r = RSlider->GetValue();
+	float g = GSlider->GetValue();
+	float b = BSlider->GetValue();
+	float a = ASlider->GetValue();
+	AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+	if (MyGameModeBase) MyGameModeBase->SetMaterial(r,g,b,a);
 }
 

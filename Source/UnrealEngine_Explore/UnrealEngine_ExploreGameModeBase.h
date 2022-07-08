@@ -18,14 +18,19 @@ public:
 	AUnrealEngine_ExploreGameModeBase();
 	virtual void Tick(float DeltaTime) override;
 
+	void SetMaterial(float r, float g, float b, float a);
+
 	void SwitchPawn();
 	void SwitchView(float blendTime);
+
 	void UpdateViewYaw(float DeltaYaw);
 	void UpdateViewPitch(float DeltaPitch);
 	void UpdateViewDistance(float DeltaDist);
+
 	bool AllPawnStatic();
 	void ReadyToSwitch(float delay);
 	void DeactivatePawn(int i);
+
 	void StartGame(FText name);
 	void RestartGame();
 	void PauseGame();
@@ -54,6 +59,9 @@ protected:
 	TArray<int> GamePawnIdxes;
 
 	AActor* ConstructBase;
+
+	class UMaterial* MeshMaterial;
+	class UMaterialInstanceDynamic* MeshMaterialInstance;
 
 	/** The widget class we will use as our menu when the game starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UMG Game")

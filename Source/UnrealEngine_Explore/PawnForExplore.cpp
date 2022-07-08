@@ -6,6 +6,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Math/UnrealMathUtility.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -52,7 +53,7 @@ void APawnForExplore::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
 
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		PawnSpringArm->TargetOffset = Ctrl->GetControlRotation().RotateVector(SpringBaseOffset);
 		
 		if (!bIsControl) {
@@ -86,7 +87,7 @@ void APawnForExplore::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 void APawnForExplore::MoveForward(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			FVector ForwardVector = UKismetMathLibrary::GetForwardVector(Ctrl->GetControlRotation());
 			PawnMeshComponent->AddImpulse(ForwardVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
@@ -98,7 +99,7 @@ void APawnForExplore::MoveForward(float AxisValue) {
 
 void APawnForExplore::MoveRight(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			FVector RightVector = UKismetMathLibrary::GetRightVector(Ctrl->GetControlRotation());
 			PawnMeshComponent->AddImpulse(RightVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
@@ -110,7 +111,7 @@ void APawnForExplore::MoveRight(float AxisValue) {
 
 void APawnForExplore::MoveUp(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			FVector UpVector = UKismetMathLibrary::GetUpVector(Ctrl->GetControlRotation());
 			PawnMeshComponent->AddImpulse(UpVector * 100.0f * impulseCoef * AxisValue * PawnMeshComponent->GetMass());
@@ -122,7 +123,7 @@ void APawnForExplore::MoveUp(float AxisValue) {
 
 void APawnForExplore::Turn(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 		if (bIsControl) {
 			if (bGrabing) {
@@ -142,7 +143,7 @@ void APawnForExplore::Turn(float AxisValue) {
 
 void APawnForExplore::LookUp(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 		if (bIsControl) {
 			if (bGrabing) {
@@ -162,7 +163,7 @@ void APawnForExplore::LookUp(float AxisValue) {
 
 void APawnForExplore::Zoom(float AxisValue) {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		float dt = UGameplayStatics::GetWorldDeltaSeconds(GetWorld());
 		if (bIsControl) {
 			armLength += dt * AxisValue * 1000.0f;
@@ -182,7 +183,7 @@ void APawnForExplore::Zoom(float AxisValue) {
 
 void APawnForExplore::StartGrab() {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			bGrabing = true;
 		}
@@ -191,7 +192,7 @@ void APawnForExplore::StartGrab() {
 
 void APawnForExplore::StopGrab() {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			bGrabing = false;
 		}
@@ -200,7 +201,7 @@ void APawnForExplore::StopGrab() {
 
 void APawnForExplore::Control() {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		if (bIsControl) {
 			PawnMeshComponent->SetEnableGravity(true);
 			PawnMeshComponent->SetAngularDamping(2.0f);
@@ -215,21 +216,25 @@ void APawnForExplore::Control() {
 
 void APawnForExplore::Pause() {
 	AController* Ctrl = GetController();
-	if (Ctrl) {
+	if (Ctrl && pawnIdx) {
 		AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
 		if (MyGameModeBase) MyGameModeBase->PauseGame();
 	}
 }
 
-void APawnForExplore::Init(UStaticMesh* mesh, int i) {
+void APawnForExplore::Init(UStaticMesh* mesh, UMaterialInstanceDynamic* materialInstance, int i) {
 	if (!bInit) {
 		SetActorLocation(FVector(500.0f, 1000.0f, 500.0f));
-		if (mesh) PawnMeshComponent->SetStaticMesh(mesh);
-		PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
+		if (mesh) {
+			PawnMeshComponent->SetStaticMesh(mesh);
+			if (i) PawnMeshComponent->SetWorldScale3D(FVector(0.25f));
+			else PawnMeshComponent->SetWorldScale3D(FVector(4.0f));
+		}
 		PawnMeshComponent->SetSimulatePhysics(true);
 		bInit = true;
 		pawnIdx = i;
 	}
+	if (materialInstance) PawnMeshComponent->SetMaterial(0, materialInstance);
 	PawnMeshComponent->SetEnableGravity(false);
 	PawnMeshComponent->SetAngularDamping(5.0f);
 	PawnMeshComponent->SetLinearDamping(5.0f);
