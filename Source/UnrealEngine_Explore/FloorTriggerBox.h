@@ -19,6 +19,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	int CurrentTriggeredPawnIdx;
+
 public:
 
 	// constructor sets default values for this actor's properties
@@ -27,4 +29,10 @@ public:
 	// overlap begin function
 	UFUNCTION()
 		void OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor);
+
+	// overlap begin function
+	UFUNCTION()
+		void OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor);
+
+	void IsCurrentPawnInTrigger();
 };

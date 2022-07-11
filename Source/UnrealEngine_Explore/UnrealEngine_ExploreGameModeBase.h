@@ -30,6 +30,7 @@ public:
 	bool AllPawnStatic();
 	void ReadyToSwitch(float delay);
 	void DeactivatePawn(int i);
+	void IsCurrentPawnInTrigger();
 
 	void StartGame(FText name);
 	void RestartGame();
@@ -59,6 +60,7 @@ protected:
 	TArray<int> GamePawnIdxes;
 
 	AActor* ConstructBase;
+	AActor* FloorTrigger;
 
 	class UMaterial* MeshMaterial;
 	class UMaterialInstanceDynamic* MeshMaterialInstance;

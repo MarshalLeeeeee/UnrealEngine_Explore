@@ -4,6 +4,7 @@
 #include "UnrealEngine_ExploreGameModeBase.h"
 #include "PawnForExplore.h"
 #include "ConstructBase.h"
+#include "FloorTriggerBox.h"
 #include "GameMenu.h"
 #include "StartMenu.h"
 #include "PauseMenu.h"
@@ -79,6 +80,8 @@ void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
 	bReadyToSwitch = false;
 
 	ConstructBase = GetWorld()->SpawnActor<AConstructBase>(FVector(500.0f, 500.0f, 100.0f), FRotator(0.0f, 0.0f, 0.0f));
+	FloorTrigger = GetWorld()->SpawnActor<AFloorTriggerBox>(FVector(500.0f, 500.0f, 90.0f), FRotator(0.0f, 0.0f, 0.0f));
+	FloorTrigger->SetActorScale3D(FVector(50.0f, 50.0f, 0.5f));
 
 	LostPawnCnt = 0;
 	CurrPawnIdx = 0;
@@ -152,6 +155,10 @@ void AUnrealEngine_ExploreGameModeBase::DeactivatePawn(int i) {
 		UGameMenu* GameWidget = Cast<UGameMenu>(CurrentWidget);
 		if (GameWidget) GameWidget->SetLostPawnCnt(LostPawnCnt);
 	}
+}
+
+void AUnrealEngine_ExploreGameModeBase::IsCurrentPawnInTrigger() {
+	Cast<AFloorTriggerBox>(FloorTrigger)->IsCurrentPawnInTrigger();
 }
 
 void AUnrealEngine_ExploreGameModeBase::ReadyToSwitch(float delay) {

@@ -209,7 +209,10 @@ void APawnForExplore::Control() {
 			bIsControl = false;
 			releaseControlTime = UKismetSystemLibrary::GetGameTimeInSeconds(GetWorld());
 			AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-			if (MyGameModeBase) MyGameModeBase->SwitchView(1.0f);
+			if (MyGameModeBase) {
+				MyGameModeBase->SwitchView(1.0f);
+				MyGameModeBase->IsCurrentPawnInTrigger();
+			}
 		}
 	}
 }
