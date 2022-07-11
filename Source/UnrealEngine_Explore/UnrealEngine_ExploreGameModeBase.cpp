@@ -55,8 +55,7 @@ AUnrealEngine_ExploreGameModeBase::AUnrealEngine_ExploreGameModeBase() {
 
 	static ConstructorHelpers::FObjectFinder<UMaterial> MaterialAsset(TEXT("/Game/Materials/WoodPlank.WoodPlank"));
 	MeshMaterial = MaterialAsset.Object;
-	MeshMaterialInstance = UMaterialInstanceDynamic::Create(MeshMaterial, nullptr);	
-
+	
 	// static ConstructorHelpers::FClassFinder<UUserWidget> WidgetAsset(TEXT("/Game/UI/Menus/GameMenu"));
 	// StartWidgetClass = WidgetAsset.Class;
 }
@@ -73,6 +72,9 @@ void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
 		GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-500.0f), FRotator(0.0f, 0.0f, 0.0f)));
 	}
 	GamePawns.Push(GetWorld()->SpawnActor<APawnForExplore>(FVector(-1000.0f), FRotator(0.0f, 0.0f, 0.0f))); // Ghost pawn for camera view
+	for (int i = 0; i <= PawnCnt; i++) {
+		MeshMaterialInstances.Push(UMaterialInstanceDynamic::Create(MeshMaterial, nullptr));
+	}
 
 	bGameOver = false;
 	bGamePause = false;
@@ -85,7 +87,13 @@ void AUnrealEngine_ExploreGameModeBase::BeginPlay() {
 
 	LostPawnCnt = 0;
 	CurrPawnIdx = 0;
-	Cast<APawnForExplore>(GamePawns[CurrPawnIdx])->Init(GamePawnMeshes[CurrPawnIdx], MeshMaterialInstance, CurrPawnIdx);
+
+	MaterialR = 1.0f;
+	MaterialG = 1.0f;
+	MaterialB = 1.0f;
+	MaterialA = 0.0f;
+
+	InitPawn();
 	UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[CurrPawnIdx]);
 	SwitchWidget(StartWidgetClass);
 }
@@ -99,7 +107,8 @@ void AUnrealEngine_ExploreGameModeBase::Tick(float DeltaTime) {
 void AUnrealEngine_ExploreGameModeBase::SwitchPawn() {
 	CurrPawnIdx++;
 	if (CurrPawnIdx <= PawnCnt) {
-		Cast<APawnForExplore>(GamePawns[GamePawnIdxes[CurrPawnIdx]])->Init(GamePawnMeshes[GamePawnIdxes[CurrPawnIdx]], MeshMaterialInstance, CurrPawnIdx);
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("%d, %d"), CurrPawnIdx, GamePawnIdxes[CurrPawnIdx]));
+		InitPawn(); 
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[GamePawnIdxes[CurrPawnIdx]]);
 	}
 	else {
@@ -148,6 +157,7 @@ void AUnrealEngine_ExploreGameModeBase::DeactivatePawn(int i) {
 		UGameplayStatics::GetPlayerController(GetWorld(), 0)->Possess(GamePawns[PawnCnt+1]);
 		SwitchView(0.0f);
 	}
+	//Cast<APawnForExplore>(GamePawns[GamePawnIdxes[i]])->SetCollision(ECollisionEnabled::NoCollision);
 	GetWorld()->DestroyActor(GamePawns[GamePawnIdxes[i]]);
 	GamePawns[GamePawnIdxes[i]] = nullptr;
 	if (i) {
@@ -241,7 +251,16 @@ void AUnrealEngine_ExploreGameModeBase::QuitGame() {
 }
 
 void AUnrealEngine_ExploreGameModeBase::SetMaterial(float r, float g, float b, float a) {
-	MeshMaterialInstance->SetVectorParameterValue(FName(TEXT("BlendColor")), FLinearColor(r, g, b, 1.0f));
-	MeshMaterialInstance->SetScalarParameterValue(FName(TEXT("EmissiveCoef")), a);
-	Cast<APawnForExplore>(GamePawns[CurrPawnIdx])->Init(GamePawnMeshes[CurrPawnIdx], MeshMaterialInstance, CurrPawnIdx);
+	MaterialR = r;
+	MaterialG = g;
+	MaterialB = b;
+	MaterialA = a;
+	InitPawn();
+}
+
+void AUnrealEngine_ExploreGameModeBase::InitPawn() {
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Init Current Pawn: %d, %d"), CurrPawnIdx, GamePawnIdxes[CurrPawnIdx]));
+	MeshMaterialInstances[GamePawnIdxes[CurrPawnIdx]]->SetVectorParameterValue(FName(TEXT("BlendColor")), FLinearColor(MaterialR, MaterialG, MaterialB, 1.0f));
+	MeshMaterialInstances[GamePawnIdxes[CurrPawnIdx]]->SetScalarParameterValue(FName(TEXT("EmissiveCoef")), MaterialA);
+	Cast<APawnForExplore>(GamePawns[GamePawnIdxes[CurrPawnIdx]])->Init(GamePawnMeshes[GamePawnIdxes[CurrPawnIdx]], MeshMaterialInstances[GamePawnIdxes[CurrPawnIdx]], CurrPawnIdx);
 }

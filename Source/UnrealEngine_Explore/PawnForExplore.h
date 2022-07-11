@@ -39,6 +39,13 @@ public:
 	UPROPERTY(EditAnywhere)
 		class UCameraComponent* PawnCamera;
 
+	class UNiagaraSystem* PawnDestroyEffect;
+	FTimerHandle PawnDestroyTimerHandle;
+	float PawnDestroyInterval;
+	void ReadyToDestroy();
+	void PawnDestroyTimer();
+
+
 	// control function
 	void MoveForward(float AxisValue);
 	void MoveRight(float AxisValue);
@@ -50,9 +57,16 @@ public:
 	void StopGrab();
 	void Control();
 	void Pause();
+
+	// state function
 	void Init(UStaticMesh* mesh, class UMaterialInstanceDynamic* materialInstance, int i);
 	bool IsControlled();
+	bool IsDestroying();
 	int GetPawnIdx();
+	
+
+	void SetCollision(ECollisionEnabled::Type NewType);
+
 
 protected:
 
@@ -61,10 +75,12 @@ protected:
 	float angularImpulseCoef;
 
 	float releaseControlTime;
+	float destroyHeight;
 
 	bool bIsControl;
 	bool bGrabing;
 	bool bInit;
+	bool bDestroy;
 	
 	int pawnIdx;
 };

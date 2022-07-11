@@ -11,40 +11,36 @@ AFloorTriggerBox::AFloorTriggerBox() {
     //Register Events
     OnActorBeginOverlap.AddDynamic(this, &AFloorTriggerBox::OnOverlapBegin);
     OnActorEndOverlap.AddDynamic(this, &AFloorTriggerBox::OnOverlapEnd);
+
+    CurrentTriggeredPawn = nullptr;
 }
 
 void AFloorTriggerBox::BeginPlay() {
     Super::BeginPlay();
-    CurrentTriggeredPawnIdx = 0;
+    
     // DrawDebugBox(GetWorld(), GetActorLocation(), GetComponentsBoundingBox().GetExtent(), FColor::Green, true, -1, 0, 5);
 }
 
 void AFloorTriggerBox::OnOverlapBegin(class AActor* OverlappedActor, class AActor* OtherActor) {
     if (OtherActor && (OtherActor != this) && OtherActor->GetClass() == APawnForExplore::StaticClass()) {
         if (!Cast<APawnForExplore>(OtherActor)->IsControlled()) {
-            AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-            if (MyGameModeBase) {
-                MyGameModeBase->DeactivatePawn(Cast<APawnForExplore>(OtherActor)->GetPawnIdx());
-            }
+            Cast<APawnForExplore>(OtherActor)->ReadyToDestroy();
         }
-        else CurrentTriggeredPawnIdx = Cast<APawnForExplore>(OtherActor)->GetPawnIdx();
+        else CurrentTriggeredPawn = OtherActor;
     }
 }
 
 void AFloorTriggerBox::OnOverlapEnd(class AActor* OverlappedActor, class AActor* OtherActor) {
     if (OtherActor && (OtherActor != this) && OtherActor->GetClass() == APawnForExplore::StaticClass()) {
         if (Cast<APawnForExplore>(OtherActor)->IsControlled()) {
-            CurrentTriggeredPawnIdx = 0;
+            CurrentTriggeredPawn = nullptr;
         }
     }
 }
 
 void AFloorTriggerBox::IsCurrentPawnInTrigger() {
-    if (CurrentTriggeredPawnIdx) {
-        AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
-        if (MyGameModeBase) {
-            MyGameModeBase->DeactivatePawn(CurrentTriggeredPawnIdx);
-        }
-        CurrentTriggeredPawnIdx = 0;
+    if (CurrentTriggeredPawn) {
+        Cast<APawnForExplore>(CurrentTriggeredPawn)->ReadyToDestroy();
+        CurrentTriggeredPawn = nullptr;
     }
 }

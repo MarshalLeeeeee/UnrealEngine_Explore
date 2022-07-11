@@ -20,6 +20,7 @@ public:
 
 	void SetMaterial(float r, float g, float b, float a);
 
+	void InitPawn();
 	void SwitchPawn();
 	void SwitchView(float blendTime);
 
@@ -63,7 +64,11 @@ protected:
 	AActor* FloorTrigger;
 
 	class UMaterial* MeshMaterial;
-	class UMaterialInstanceDynamic* MeshMaterialInstance;
+	TArray<UMaterialInstanceDynamic*> MeshMaterialInstances;
+	float MaterialR;
+	float MaterialG;
+	float MaterialB;
+	float MaterialA;
 
 	/** The widget class we will use as our menu when the game starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UMG Game")

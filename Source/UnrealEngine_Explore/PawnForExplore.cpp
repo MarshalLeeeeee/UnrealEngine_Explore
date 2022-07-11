@@ -7,6 +7,9 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Niagara/Public/NiagaraFunctionLibrary.h"
+#include "Niagara/Public/NiagaraComponent.h"
+#include "Niagara/Classes/NiagaraSystem.h"
 #include "Math/UnrealMathUtility.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -27,21 +30,28 @@ APawnForExplore::APawnForExplore() {
 
 	armLength = 500.f;
 	SpringBaseOffset = FVector(-100.0f, 0.0f, 0.0f);
-	PawnSpringArm = CreateAbstractDefaultSubobject<USpringArmComponent>(TEXT("PawnSpringArm"));
+	PawnSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("PawnSpringArm"));
 	PawnSpringArm->SetupAttachment(PawnMeshComponent);
 	PawnSpringArm->TargetArmLength = armLength;
 	PawnSpringArm->bUsePawnControlRotation = true;
 	
-	PawnCamera = CreateAbstractDefaultSubobject<UCameraComponent>(TEXT("PawnCamera"));
+	PawnCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("PawnCamera"));
 	PawnCamera->SetupAttachment(PawnSpringArm);
 	PawnCamera->bUsePawnControlRotation = true;
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem> ParticleAsset(TEXT("/Game/Particles/FountainFX.FountainFX"));
+	PawnDestroyEffect = ParticleAsset.Object;
 
 	bIsControl = false;
 	bGrabing = false;
 	bInit = false;
+	bDestroy = false;
+
 	impulseCoef = 1.0;
 	angularImpulseCoef = 1.0;
 	pawnIdx = 16;
+	
+	PawnDestroyInterval = 0.02f;
 }
 
 // Called when the game starts or when spawned
@@ -245,11 +255,42 @@ void APawnForExplore::Init(UStaticMesh* mesh, UMaterialInstanceDynamic* material
 	bIsControl = true;
 }
 
+void APawnForExplore::SetCollision(ECollisionEnabled::Type NewType) {
+	PawnMeshComponent->SetCollisionEnabled(NewType);
+}
+
 bool APawnForExplore::IsControlled() {
 	return bIsControl;
 }
 
+bool APawnForExplore::IsDestroying() {
+	return bDestroy;
+}
+
 int APawnForExplore::GetPawnIdx() {
 	return pawnIdx;
+}
+
+void APawnForExplore::ReadyToDestroy() {
+	if (!bDestroy) {
+		//UNiagaraFunctionLibrary::SpawnSystemAttached(PawnDestroyEffect, PawnMeshComponent, FName(TEXT("None")), PawnMeshComponent->GetComponentLocation(),FRotator(0.0f,0.0f,0.0f), EAttachLocation::KeepRelativeOffset,true,true);
+		bDestroy = true;
+		GetWorldTimerManager().SetTimer(PawnDestroyTimerHandle, this, &APawnForExplore::PawnDestroyTimer, PawnDestroyInterval, true);
+	}
+}
+
+void APawnForExplore::PawnDestroyTimer() {
+	UMaterialInterface* material = PawnMeshComponent->GetMaterial(0);
+	float op = Cast<UMaterialInstanceDynamic>(material)->K2_GetScalarParameterValue(FName(TEXT("OpacityCoef")));
+	op += PawnDestroyInterval;
+	if (op >= 1.0f) {
+		GetWorldTimerManager().ClearTimer(PawnDestroyTimerHandle);
+		AUnrealEngine_ExploreGameModeBase* MyGameModeBase = Cast<AUnrealEngine_ExploreGameModeBase>(UGameplayStatics::GetGameMode(GetWorld()));
+		if (MyGameModeBase) MyGameModeBase->DeactivatePawn(pawnIdx);
+	}
+	else {
+		Cast<UMaterialInstanceDynamic>(material)->SetScalarParameterValue(FName(TEXT("OpacityCoef")), op);
+		PawnMeshComponent->SetMaterial(0, material);
+	}
 }
 
