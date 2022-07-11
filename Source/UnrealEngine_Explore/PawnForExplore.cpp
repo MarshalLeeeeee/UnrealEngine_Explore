@@ -41,6 +41,7 @@ APawnForExplore::APawnForExplore() {
 	bInit = false;
 	impulseCoef = 1.0;
 	angularImpulseCoef = 1.0;
+	pawnIdx = 16;
 }
 
 // Called when the game starts or when spawned
